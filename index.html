@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#102a27">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
   <title>Creda | Carnet de dettes</title>
   <link rel="stylesheet" href="styles.css">
 </head>
@@ -41,7 +43,7 @@
       <header class="topbar">
         <div class="topbar-inner">
           <div class="brand-inline"><span class="brand-mark small">C</span><strong>Creda</strong></div>
-          <div class="topbar-actions"><button class="icon-button" id="notifications" aria-label="Notifications">♢<i></i></button><button class="profile-button" id="profile-button"><span id="profile-initials">AD</span><span class="profile-name" id="profile-name">Amina</span><span>⌄</span></button></div>
+          <div class="topbar-actions"><button class="install-button top-install" id="install-app-top" type="button">Installer</button><button class="icon-button" id="notifications" aria-label="Notifications">♢<i></i></button><button class="profile-button" id="profile-button"><span id="profile-initials">AD</span><span class="profile-name" id="profile-name">Amina</span><span>⌄</span></button></div>
         </div>
       </header>
       <div class="content">
@@ -74,7 +76,7 @@
       <div class="modal profile-modal"><div class="modal-head"><div><p class="eyebrow">MON COMPTE</p><h2 id="profile-title">Profil utilisateur</h2></div><button class="close-button" id="close-profile" aria-label="Fermer">×</button></div>
         <div class="profile-summary"><span class="profile-avatar" id="profile-large-initials">AD</span><div><strong id="profile-large-name">Amina Diallo</strong><small id="profile-email">vous@exemple.com</small></div></div>
         <form id="profile-form" class="form-stack"><label>Nom complet<input id="profile-edit-name" type="text" required></label><label>Adresse e-mail<input id="profile-edit-email" type="email" required></label><button class="button primary full" type="submit">Enregistrer les changements</button></form>
-        <button class="button secondary full" id="resend-welcome" type="button">Renvoyer l’e-mail de bienvenue</button><button class="button danger full" id="logout-button" type="button">Se déconnecter</button>
+        <button class="button secondary full" id="resend-welcome" type="button">Renvoyer l’e-mail de bienvenue</button><button class="install-button full" id="install-app" type="button">Installer l’application</button><button class="button danger full" id="logout-button" type="button">Se déconnecter</button>
       </div>
     </div>
     <div id="report-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="report-title">
@@ -84,6 +86,10 @@
   </main>
   <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
   <script src="mail-config.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="firebase-config.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

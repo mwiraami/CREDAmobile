@@ -9,8 +9,69 @@ let state = {
 };
 let authMode = 'signup';
 const $ = id => document.getElementById(id);
+const cloudEnabled = Boolean(window.firebase && window.CREDA_FIREBASE_CONFIG && !window.CREDA_FIREBASE_CONFIG.apiKey.includes('VOTRE_'));
 
-function save() { localStorage.setItem(storeKey, JSON.stringify(state)); }
+function cloudSave() {
+  if (!cloudEnabled || !state.user?.uid) return Promise.resolve();
+  return firebase.firestore().collection('users').doc(state.user.uid).set({
+    name: state.user.name,
+    email: state.user.email,
+    debts: state.debts,
+    expenses: state.expenses,
+    budgets: state.budgets,
+    settings: state.settings,
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  }, { merge: true });
+}
+
+async function loadCloudUser(authUser) {
+  const snapshot = await firebase.firestore().collection('users').doc(authUser.uid).get();
+  const data = snapshot.exists ? snapshot.data() : {};
+  state.user = { uid: authUser.uid, name: data.name || authUser.displayName || 'Utilisateur', email: authUser.email };
+  state.debts = (data.debts || []).map(debt => ({ kind: 'receivable', urgency: 'normal', payments: [], ...debt }));
+  state.expenses = data.expenses || [];
+  state.budgets = data.budgets || {};
+  state.settings = { currency: 'USD', darkMode: false, ...(data.settings || {}) };
+  save();
+}
+
+async function handleCloudAuth(email, password, name) {
+  try {
+    let credential;
+    if (authMode === 'signup') {
+      credential = await firebase.auth().createUserWithEmailAndPassword(email, password);
+      await credential.user.updateProfile({ displayName: name });
+      state.user = { uid: credential.user.uid, name, email };
+      state.debts = [];
+      state.expenses = [];
+      state.budgets = {};
+      state.settings = { currency: 'USD', darkMode: false };
+      await cloudSave();
+    } else {
+      credential = await firebase.auth().signInWithEmailAndPassword(email, password);
+      await loadCloudUser(credential.user);
+    }
+    $('auth-error').textContent = '';
+    showDashboard();
+    if (authMode === 'signup') {
+      try {
+        const sent = await sendWelcomeEmail(state.user);
+        showToast(sent ? 'Compte créé, vérifiez votre e-mail' : 'Compte créé');
+      } catch (error) {
+        showToast('Compte créé, mais l’e-mail de bienvenue a échoué');
+        console.error('EmailJS error:', error);
+      }
+    }
+  } catch (error) {
+    $('auth-error').textContent = error.code === 'auth/email-already-in-use' ? 'Un compte existe déjà pour cet e-mail.' : 'E-mail ou mot de passe incorrect.';
+    console.error('Firebase auth error:', error);
+  }
+}
+
+function save() {
+  localStorage.setItem(storeKey, JSON.stringify(state));
+  cloudSave().catch(error => console.error('Cloud sync error:', error));
+}
 function initials(name = '') { return name.split(' ').filter(Boolean).slice(0, 2).map(part => part[0]).join('').toUpperCase(); }
 function formatMoney(amount, currency = 'USD') { return `${Number(amount || 0).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}`; }
 function formatDate(value) { return value ? new Date(`${value}T12:00:00`).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Sans date'; }
@@ -21,7 +82,7 @@ async function sendWelcomeEmail(user) {
   if (!emailIsConfigured() || !window.emailjs) return false;
   const config = window.CREDA_EMAIL_CONFIG;
   emailjs.init({ publicKey: config.publicKey });
-  await emailjs.send(config.serviceId, config.templateId, { to_email: user.email, user_email: user.email, user_name: user.name, app_name: 'Creda' });
+  await emailjs.send(config.serviceId, config.templateId, { to_email: user.email, email: user.email, user_email: user.email, to_name: user.name, user_name: user.name, app_name: 'Creda' });
   return true;
 }
 function debtPaid(debt) { return (debt.payments || []).reduce((sum, payment) => sum + Number(payment.amount), 0); }
@@ -61,15 +122,53 @@ function openDebtModal() { $('debt-modal').classList.remove('hidden'); }
 function openProfile() { if (!state.user) return; $('profile-edit-name').value = state.user.name; $('profile-edit-email').value = state.user.email; $('profile-modal').classList.remove('hidden'); }
 function exportCsv() { const rows = [['Type', 'Client', 'Produit', 'Montant', 'Devise', 'Échéance', 'Statut'], ...state.debts.map(debt => [debt.kind, debt.client, debt.product, debt.amount, debt.currency, debt.dueDate, statusLabel(debtStatus(debt))]), ['', '', '', '', '', '', ''], ['Type', 'Catégorie', 'Montant', 'Devise', 'Date', 'Note'], ...state.expenses.map(item => [item.type, item.category, item.amount, item.currency, item.date, item.note])]; const csv = rows.map(row => row.map(value => `"${String(value || '').replaceAll('"', '""')}"`).join(';')).join('\n'); const link = document.createElement('a'); link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' })); link.download = 'creda-export.csv'; link.click(); URL.revokeObjectURL(link.href); showToast('Export CSV téléchargé'); }
 
-$('auth-form').addEventListener('submit', async event => { event.preventDefault(); const email = $('email').value.trim(); const password = $('password').value; const name = $('name').value.trim(); if (authMode === 'signup') { if (!name) return; const user = { name, email, password }; state.user = user; save(); showDashboard(); $('auth-error').textContent = ''; try { const sent = await sendWelcomeEmail(user); showToast(sent ? 'Compte créé, vérifiez votre e-mail' : 'Compte créé. Configurez EmailJS pour activer les e-mails'); } catch (error) { showToast('Compte créé, mais l’e-mail n’a pas pu être envoyé'); console.error('EmailJS error:', error); } } else if (state.user && state.user.email === email && state.user.password === password) showDashboard(); else $('auth-error').textContent = 'E-mail ou mot de passe incorrect.'; });
+$('auth-form').addEventListener('submit', async event => { event.preventDefault(); const email = $('email').value.trim(); const password = $('password').value; const name = $('name').value.trim(); if (cloudEnabled) return handleCloudAuth(email, password, name); if (authMode === 'signup') { if (!name) return; const user = { name, email, password }; state.user = user; save(); showDashboard(); $('auth-error').textContent = ''; try { const sent = await sendWelcomeEmail(user); showToast(sent ? 'Compte créé, vérifiez votre e-mail' : 'Compte créé. Configurez EmailJS pour activer les e-mails'); } catch (error) { showToast('Compte créé, mais l’e-mail n’a pas pu être envoyé'); console.error('EmailJS error:', error); } } else if (state.user && state.user.email === email && state.user.password === password) showDashboard(); else $('auth-error').textContent = 'E-mail ou mot de passe incorrect.'; });
 $('switch-auth').addEventListener('click', () => setAuthMode(authMode === 'signup' ? 'login' : 'signup'));
 $('open-add').addEventListener('click', openDebtModal); if ($('nav-add')) $('nav-add').addEventListener('click', openDebtModal); $('close-modal').addEventListener('click', () => $('debt-modal').classList.add('hidden'));
 $('currency').addEventListener('change', event => { $('form-currency').textContent = event.target.value; $('rate-status').textContent = event.target.value === 'USD' ? '1 USD = 1 USD' : `Saisissez votre taux : 1 USD = ... ${event.target.value}`; }); $('exchange-rate').addEventListener('input', () => { $('rate-status').textContent = `Votre taux : 1 USD = ${$('exchange-rate').value || '...'} ${$('currency').value}`; });
 $('debt-form').addEventListener('submit', event => { event.preventDefault(); state.debts.unshift({ id: Date.now(), kind: $('debt-kind').value, urgency: $('urgency').value, client: $('client').value.trim(), identification: $('identification').value.trim(), product: $('product').value.trim(), amount: $('amount').value, exchangeRate: $('exchange-rate').value, dueDate: $('due-date').value, currency: $('currency').value, note: $('note').value.trim(), payments: [] }); save(); event.target.reset(); $('exchange-rate').value = '1'; $('form-currency').textContent = 'USD'; $('rate-status').textContent = 'Ex. 1 USD = 2400 CDF'; $('debt-modal').classList.add('hidden'); renderHome(); showToast('Enregistrement ajouté'); });
 $('profile-button').addEventListener('click', openProfile); $('nav-profile').addEventListener('click', renderSettingsView); $('close-profile').addEventListener('click', () => $('profile-modal').classList.add('hidden'));
-$('profile-form').addEventListener('submit', event => { event.preventDefault(); state.user.name = $('profile-edit-name').value.trim(); state.user.email = $('profile-edit-email').value.trim(); save(); $('profile-modal').classList.add('hidden'); showDashboard(); showToast('Profil mis à jour'); }); $('logout-button').addEventListener('click', () => { $('profile-modal').classList.add('hidden'); $('dashboard').classList.add('hidden'); $('auth-screen').classList.remove('hidden'); setAuthMode('login'); });
+$('profile-form').addEventListener('submit', event => { event.preventDefault(); state.user.name = $('profile-edit-name').value.trim(); state.user.email = $('profile-edit-email').value.trim(); save(); $('profile-modal').classList.add('hidden'); showDashboard(); showToast('Profil mis à jour'); }); $('logout-button').addEventListener('click', () => { if (cloudEnabled) firebase.auth().signOut(); $('profile-modal').classList.add('hidden'); $('dashboard').classList.add('hidden'); $('auth-screen').classList.remove('hidden'); setAuthMode('login'); });
 $('resend-welcome').addEventListener('click', async () => { if (!emailIsConfigured()) return showToast('Configurez d’abord EmailJS dans mail-config.js'); try { await sendWelcomeEmail(state.user); showToast('E-mail de bienvenue renvoyé'); } catch (error) { showToast('Envoi impossible, vérifiez EmailJS'); console.error('EmailJS error:', error); } });
 $('clients-module').addEventListener('click', renderDebtsView); $('payments-module').addEventListener('click', renderDebtsView); $('reports-module').addEventListener('click', renderReportsView); $('nav-home').addEventListener('click', renderHome); $('nav-expenses').addEventListener('click', renderExpensesView); $('nav-debts').addEventListener('click', renderDebtsView); $('nav-reports').addEventListener('click', renderReportsView);
 $('notifications').addEventListener('click', () => { const late = state.debts.filter(debt => debtStatus(debt) === 'late').length; showToast(late ? `${late} échéance(s) en retard` : 'Aucune échéance urgente'); });
 +document.addEventListener('click', event => { const button = event.target.closest('[data-pay]'); if (!button) return; const debt = state.debts.find(item => String(item.id) === button.dataset.pay); if (!debt) return; const remaining = Number(debt.amount) - debtPaid(debt); const amount = prompt(`Montant du paiement (${remaining} ${debt.currency} restant) :`); if (!amount || Number(amount) <= 0) return; debt.payments = debt.payments || []; debt.payments.push({ amount: Math.min(Number(amount), remaining), date: new Date().toISOString().slice(0, 10) }); save(); renderHome(); showToast('Paiement partiel enregistré'); });
-if (state.user) showDashboard(); else setAuthMode('signup');
+let deferredInstallPrompt = null;
+window.addEventListener('beforeinstallprompt', event => {
+  event.preventDefault();
+  deferredInstallPrompt = event;
+});
+window.addEventListener('appinstalled', () => {
+  deferredInstallPrompt = null;
+  showToast('Application installée');
+});
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(error => console.warn('Service worker:', error));
+async function promptInstall() {
+  if (!deferredInstallPrompt) {
+    showToast('Dans le menu du navigateur, choisissez « Installer Creda » ou « Ajouter à l’écran d’accueil ».');
+    return;
+  }
+  deferredInstallPrompt.prompt();
+  await deferredInstallPrompt.userChoice;
+  deferredInstallPrompt = null;
+}
+$('install-app').addEventListener('click', promptInstall);
+$('install-app-top').addEventListener('click', promptInstall);
+if (cloudEnabled) {
+  firebase.initializeApp(window.CREDA_FIREBASE_CONFIG);
+  firebase.auth().onAuthStateChanged(async authUser => {
+    if (!authUser) {
+      $('dashboard').classList.add('hidden');
+      $('auth-screen').classList.remove('hidden');
+      setAuthMode('signup');
+      return;
+    }
+    try {
+      await loadCloudUser(authUser);
+      showDashboard();
+    } catch (error) {
+      $('auth-error').textContent = 'Impossible de charger vos données cloud.';
+      console.error('Firestore load error:', error);
+    }
+  });
+} else if (state.user) showDashboard(); else setAuthMode('signup');
