@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#102a27">
+  <title>Creda | Carnet de dettes</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main id="app" class="app-shell">
+    <section id="auth-screen" class="auth-screen">
+      <div class="auth-visual">
+        <div class="brand-mark">C</div>
+        <p class="eyebrow">CARNET FINANCIER</p>
+        <h1>Gardez vos comptes clairs.</h1>
+        <p class="hero-copy">Enregistrez chaque dette, suivez les échéances et restez serein dans vos échanges.</p>
+        <div class="floating-note note-one"><span>✓</span><div><strong>Paiement reçu</strong><small>Client vérifié</small></div></div>
+        <div class="floating-note note-two"><span>₣</span><div><strong>12 450,00</strong><small>Total en attente</small></div></div>
+      </div>
+      <div class="auth-panel">
+        <div class="mobile-brand"><span class="brand-mark small">C</span><span>Creda</span></div>
+        <div class="auth-heading">
+          <p class="eyebrow">BIENVENUE</p>
+          <h2 id="auth-title">Créer votre compte</h2>
+          <p id="auth-subtitle">Commencez à suivre vos dettes en toute simplicité.</p>
+        </div>
+        <form id="auth-form" class="form-stack">
+          <label id="name-field">Nom complet<input id="name" type="text" placeholder="Ex. Amina Diallo" autocomplete="name"></label>
+          <label>Adresse e-mail<input id="email" type="email" placeholder="vous@exemple.com" required autocomplete="email"></label>
+          <label>Mot de passe<input id="password" type="password" placeholder="6 caractères minimum" minlength="6" required autocomplete="new-password"></label>
+          <button class="button primary full" type="submit"><span id="auth-action">Créer mon compte</span><span>→</span></button>
+        </form>
+        <p id="auth-error" class="form-error" role="alert"></p>
+        <p id="mail-config-notice" class="mail-config-notice hidden">E-mail automatique non configuré. Ajoutez vos identifiants EmailJS dans <strong>mail-config.js</strong>.</p>
+        <p class="auth-switch"><span id="switch-copy">Vous avez déjà un compte ?</span> <button id="switch-auth" type="button">Se connecter</button></p>
+      </div>
+    </section>
+
+    <section id="dashboard" class="dashboard hidden">
+      <header class="topbar">
+        <div class="topbar-inner">
+          <div class="brand-inline"><span class="brand-mark small">C</span><strong>Creda</strong></div>
+          <div class="topbar-actions"><button class="icon-button" id="notifications" aria-label="Notifications">♢<i></i></button><button class="profile-button" id="profile-button"><span id="profile-initials">AD</span><span class="profile-name" id="profile-name">Amina</span><span>⌄</span></button></div>
+        </div>
+      </header>
+      <div class="content">
+        <section class="welcome-row"><div><p class="eyebrow">TABLEAU DE BORD</p><h1>Bonjour, <span id="welcome-name">Amina</span> <span class="wave">✦</span></h1><p class="muted">Voici l'état de vos comptes aujourd'hui.</p></div><button class="button primary add-button" id="open-add"><span>＋</span> Nouvelle dette</button></section>
+        <section id="stats-grid" class="stats-grid">
+          <article class="stat-card accent"><div class="stat-icon">◈</div><div><p>Total à recevoir</p><strong id="total-amount">0,00</strong><small id="currency-label">USD</small></div><span class="trend">↗</span></article>
+          <article class="stat-card"><div class="stat-icon soft">◷</div><div><p>Dettes en cours</p><strong id="active-count">0</strong><small>clients actifs</small></div></article>
+          <article class="stat-card"><div class="stat-icon warning">!</div><div><p>Échéances proches</p><strong id="due-count">0</strong><small>dans les 7 jours</small></div></article>
+        </section>
+        <section class="module-grid" aria-label="Modules Creda">
+          <button class="module-card" id="clients-module"><span class="module-icon">♙</span><span><strong>Clients</strong><small id="client-count">0 client enregistré</small></span><b>→</b></button>
+          <button class="module-card" id="payments-module"><span class="module-icon payment">✓</span><span><strong>Paiements</strong><small>Marquer une dette comme payée</small></span><b>→</b></button>
+          <button class="module-card" id="reports-module"><span class="module-icon report">▥</span><span><strong>Rapports</strong><small>Résumé de votre activité</small></span><b>→</b></button>
+        </section>
+        <section class="list-section">
+          <div class="section-heading"><div><h2>Dettes récentes</h2><p class="muted">Un aperçu de vos derniers enregistrements</p></div><div class="list-tools"><div class="search-box"><span>⌕</span><input id="search" type="search" placeholder="Rechercher un client"></div><select id="status-filter" aria-label="Filtrer les dettes"><option value="all">Toutes</option><option value="pending">En cours</option><option value="paid">Payées</option></select></div></div>
+          <div id="debt-list" class="debt-list"></div>
+        </section>
+        <section id="feature-view" class="feature-view hidden"><div id="feature-content"></div></section>
+      </div>
+      <nav class="bottom-nav"><button class="active" id="nav-home"><span>▦</span>Accueil</button><button id="nav-expenses"><span>↘</span>Dépenses</button><button id="nav-debts"><span>♧</span>Dettes</button><button id="nav-reports"><span>▥</span>Rapports</button><button id="nav-profile"><span>◎</span>Profil</button></nav>
+    </section>
+
+    <div id="debt-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <div class="modal"><div class="modal-head"><div><p class="eyebrow">NOUVEL ENREGISTREMENT</p><h2 id="modal-title">Ajouter une dette</h2></div><button class="close-button" id="close-modal" aria-label="Fermer">×</button></div>
+        <form id="debt-form" class="form-stack modal-form"><div class="two-fields"><label>Type<select id="debt-kind"><option value="receivable">Créance · on me doit</option><option value="payable">Dette · je dois</option></select></label><label>Urgence<select id="urgency"><option value="normal">Normale</option><option value="high">Importante</option><option value="urgent">Urgente</option></select></label></div><label>Client / tiers<input id="client" type="text" placeholder="Nom complet du client" required></label><label>Identification / téléphone<input id="identification" type="text" placeholder="Ex. +243 81 234 5678" required></label><label>Produit ou service<input id="product" type="text" placeholder="Ex. 2 sacs de riz" required></label><div class="two-fields"><label>Somme due<div class="input-prefix"><span id="form-currency">USD</span><input id="amount" type="number" min="0" step="0.01" placeholder="0,00" required></div></label><label>Taux fixé par vous<input id="exchange-rate" type="number" min="0.0001" step="0.0001" value="1" required><small class="rate-status" id="rate-status">Ex. 1 USD = 2400 CDF</small></label></div><div class="two-fields"><label>Échéance<input id="due-date" type="date" required></label><label>Devise<select id="currency"><option>USD</option><option>EUR</option><option>CDF</option><option>XAF</option></select></label></div><label>Note <span class="optional">(facultatif)</span><textarea id="note" rows="2" placeholder="Ajouter un détail..." ></textarea><button class="button primary full" type="submit">Enregistrer la dette <span>→</span></button></form>
+      </div>
+    </div>
+    <div id="profile-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="profile-title">
+      <div class="modal profile-modal"><div class="modal-head"><div><p class="eyebrow">MON COMPTE</p><h2 id="profile-title">Profil utilisateur</h2></div><button class="close-button" id="close-profile" aria-label="Fermer">×</button></div>
+        <div class="profile-summary"><span class="profile-avatar" id="profile-large-initials">AD</span><div><strong id="profile-large-name">Amina Diallo</strong><small id="profile-email">vous@exemple.com</small></div></div>
+        <form id="profile-form" class="form-stack"><label>Nom complet<input id="profile-edit-name" type="text" required></label><label>Adresse e-mail<input id="profile-edit-email" type="email" required></label><button class="button primary full" type="submit">Enregistrer les changements</button></form>
+        <button class="button secondary full" id="resend-welcome" type="button">Renvoyer l’e-mail de bienvenue</button><button class="button danger full" id="logout-button" type="button">Se déconnecter</button>
+      </div>
+    </div>
+    <div id="report-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="report-title">
+      <div class="modal"><div class="modal-head"><div><p class="eyebrow">ANALYSE</p><h2 id="report-title">Rapport d'activité</h2></div><button class="close-button" id="close-report" aria-label="Fermer">×</button></div><div id="report-content" class="report-content"></div></div>
+    </div>
+    <div id="toast" class="toast" role="status"></div>
+  </main>
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+  <script src="mail-config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
